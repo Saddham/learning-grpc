@@ -35,6 +35,9 @@ message UpdateRequest {
 
 message EndRequest {
     string id = 1;
+    google.protobuf.Timestamp time = 2;
+    double distance = 3;
+
 }
 
 message EndResponse {

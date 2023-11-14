@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -24,16 +25,32 @@ func main() {
 		log.Fatalf("error: %s", err)
 	}
 
-	srv := grpc.NewServer()
-
-	var u Rides
-	pb.RegisterRidesServer(srv, &u)
-	reflection.Register(srv)
+	srv := createServer()
 
 	log.Printf("info: sever ready on %s", addr)
 	if err := srv.Serve(lis); err != nil {
 		log.Fatalf("error: can't serve - %s", err)
 	}
+}
+
+func createServer() *grpc.Server {
+	srv := grpc.NewServer(grpc.UnaryInterceptor(timingInterceptor))
+
+	var u Rides
+	pb.RegisterRidesServer(srv, &u)
+	reflection.Register(srv)
+
+	return srv
+}
+
+func timingInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	start := time.Now()
+	defer func() {
+		duration := time.Since(start)
+		log.Printf("info: %s took %v", info.FullMethod, duration)
+	}()
+
+	return handler(ctx, req)
 }
 
 type Rides struct {
@@ -51,6 +68,16 @@ func (r *Rides) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartRespo
 	// TODO: Validate req
 
 	resp := pb.StartResponse{
+		Id: req.Id,
+	}
+
+	return &resp, nil
+}
+
+func (r *Rides) End(ctx context.Context, req *pb.EndRequest) (*pb.EndResponse, error) {
+	// TODO: Validate req
+
+	resp := pb.EndResponse{
 		Id: req.Id,
 	}
 
